@@ -12,7 +12,12 @@ import {
 import type LazyFileViewPlugin from './main';
 import type { InterceptionMode } from './types';
 
-type SettingsKey = 'mode' | 'folders' | 'extensions';
+type SettingsKey =
+	| 'mode'
+	| 'folders'
+	| 'extensions'
+	| 'protectedFolders'
+	| 'protectedExtensions';
 
 export class LazyFileViewSettingTab extends PluginSettingTab {
 	constructor(
@@ -39,7 +44,7 @@ export class LazyFileViewSettingTab extends PluginSettingTab {
 			},
 			{
 				name: 'Folders',
-				desc: 'One vault-relative folder per line. Subfolders are included.',
+				desc: 'One vault-relative folder per line. Subfolders are included. Use / to include the vault root.',
 				control: {
 					type: 'textarea',
 					key: 'folders',
@@ -49,12 +54,32 @@ export class LazyFileViewSettingTab extends PluginSettingTab {
 			},
 			{
 				name: 'Extensions',
-				desc: 'One extension per line, without a leading dot. Protected file types are always excluded.',
+				desc: 'One extension per line, without a leading dot. Use * for every extension. Protected rules below take precedence.',
 				control: {
 					type: 'textarea',
 					key: 'extensions',
 					placeholder: 'pdf\npng\ndocx',
 					rows: 12,
+				},
+			},
+			{
+				name: 'Protected folders',
+				desc: 'Files in these vault-relative folders are never intercepted. The vault configuration folder is added here during migration. Use / to protect the entire vault.',
+				control: {
+					type: 'textarea',
+					key: 'protectedFolders',
+					placeholder: this.app.vault.configDir,
+					rows: 5,
+				},
+			},
+			{
+				name: 'Protected extensions',
+				desc: 'These extensions are never intercepted. Keep Obsidian native types such as md, canvas, and base protected unless you accept broken navigation. Use * to protect every extension.',
+				control: {
+					type: 'textarea',
+					key: 'protectedExtensions',
+					placeholder: 'md\ncanvas\nbase',
+					rows: 5,
 				},
 			},
 		];
@@ -68,6 +93,10 @@ export class LazyFileViewSettingTab extends PluginSettingTab {
 				return this.plugin.settings.folders.join('\n');
 			case 'extensions':
 				return this.plugin.settings.extensions.join('\n');
+			case 'protectedFolders':
+				return this.plugin.settings.protectedFolders.join('\n');
+			case 'protectedExtensions':
+				return this.plugin.settings.protectedExtensions.join('\n');
 			default:
 				return undefined;
 		}
@@ -88,6 +117,17 @@ export class LazyFileViewSettingTab extends PluginSettingTab {
 				break;
 			case 'extensions':
 				this.plugin.settings.extensions = normalizeExtensions(
+					splitSettingLines(value),
+				);
+				break;
+			case 'protectedFolders':
+				this.plugin.settings.protectedFolders = normalizeFolders(
+					splitSettingLines(value),
+					normalizePath,
+				);
+				break;
+			case 'protectedExtensions':
+				this.plugin.settings.protectedExtensions = normalizeExtensions(
 					splitSettingLines(value),
 				);
 				break;

@@ -4,6 +4,8 @@ export interface LazyFileViewSettings {
 	mode: InterceptionMode;
 	folders: string[];
 	extensions: string[];
+	protectedFolders: string[];
+	protectedExtensions: string[];
 }
 
 export interface PlaceholderViewState extends Record<string, unknown> {

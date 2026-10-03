@@ -8,6 +8,8 @@ The placeholder shows file metadata without reading the file and provides action
 - reveal it in the system file manager;
 - load it through Obsidian's normal file-opening path.
 
+In settings, use `/` as a folder entry to include the vault root, or `*` as an extension entry to include every extension. Protected folders and protected extensions are separate, visible lists that always take precedence over interception rules. Existing installations are migrated with the vault's current configuration folder plus `md`, `canvas`, and `base` protected by default. You can edit these lists as Obsidian evolves without updating the plugin.
+
 ## Compatibility note
 
 Obsidian currently has no documented, cancellable event for standalone file opens. The plugin therefore wraps the public `WorkspaceLeaf.openFile()` method. The wrapper is isolated, cooperates with other wrappers through `monkey-around`, and is removed when the plugin unloads. A future Obsidian update could require this integration to change.

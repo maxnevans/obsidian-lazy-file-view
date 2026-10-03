@@ -1,20 +1,27 @@
-import { PROTECTED_EXTENSIONS } from './constants';
 import type { InterceptableFile, LazyFileViewSettings } from './types';
 
 export function shouldInterceptFile(
 	file: InterceptableFile,
 	settings: LazyFileViewSettings,
-	configDir: string,
 ): boolean {
 	const extension = file.extension.toLowerCase();
-	if (PROTECTED_EXTENSIONS.has(extension) || isPathInFolder(file.path, configDir)) {
+	const isProtectedExtension =
+		extension.length > 0 &&
+		(settings.protectedExtensions.includes('*') ||
+			settings.protectedExtensions.includes(extension));
+	const isProtectedFolder = settings.protectedFolders.some((folder) =>
+		isPathInFolder(file.path, folder),
+	);
+	if (isProtectedExtension || isProtectedFolder) {
 		return false;
 	}
 
 	const matchesFolder = settings.folders.some((folder) =>
 		isPathInFolder(file.path, folder),
 	);
-	const matchesExtension = settings.extensions.includes(extension);
+	const matchesExtension =
+		extension.length > 0 &&
+		(settings.extensions.includes('*') || settings.extensions.includes(extension));
 
 	switch (settings.mode) {
 		case 'folders':
@@ -27,6 +34,9 @@ export function shouldInterceptFile(
 }
 
 export function isPathInFolder(path: string, folder: string): boolean {
+	if (/^\/+$/u.test(folder)) {
+		return path.length > 0;
+	}
 	const normalizedFolder = folder.replace(/^\/+|\/+$/g, '');
 	return normalizedFolder.length > 0 && path.startsWith(`${normalizedFolder}/`);
 }

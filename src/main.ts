@@ -18,9 +18,13 @@ export default class LazyFileViewPlugin extends Plugin {
 	private interceptor!: OpenInterceptor;
 
 	async onload(): Promise<void> {
-		this.settings = parseSettings(await this.loadData(), normalizePath);
+		this.settings = parseSettings(
+			await this.loadData(),
+			normalizePath,
+			this.app.vault.configDir,
+		);
 		this.interceptor = new OpenInterceptor((file) =>
-			shouldInterceptFile(file, this.settings, this.app.vault.configDir),
+			shouldInterceptFile(file, this.settings),
 		);
 
 		this.registerView(
@@ -43,7 +47,11 @@ export default class LazyFileViewPlugin extends Plugin {
 	}
 
 	async saveSettings(): Promise<void> {
-		this.settings = parseSettings(this.settings, normalizePath);
+		this.settings = parseSettings(
+			this.settings,
+			normalizePath,
+			this.app.vault.configDir,
+		);
 		await this.saveData(this.settings);
 	}
 

@@ -1,6 +1,6 @@
 export const VIEW_TYPE_PLACEHOLDER = 'lazy-file-view-placeholder';
 
-export const PROTECTED_EXTENSIONS = new Set(['md', 'canvas', 'base']);
+export const DEFAULT_PROTECTED_EXTENSIONS = ['md', 'canvas', 'base'] as const;
 
 export const DEFAULT_EXTENSION_LIST = [
 	'pdf',

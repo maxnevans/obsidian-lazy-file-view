@@ -106,14 +106,14 @@ export class BinaryPlaceholderView extends FileView {
 		});
 
 		const actions = card.createDiv({ cls: 'lazy-file-view__actions' });
-		this.createAction(actions, 'Open in default app', 'mod-cta', async () => {
+		this.createAction(actions, 'Open with Obsidian', 'mod-cta', async () => {
+			await this.plugin.openNatively(this.leaf, file);
+		});
+		this.createAction(actions, 'Open with default app', '', async () => {
 			await this.openInDefaultApp(file);
 		});
 		this.createAction(actions, 'Reveal in system explorer', '', () => {
 			this.revealInSystemExplorer(file);
-		});
-		this.createAction(actions, 'Load in Obsidian', 'mod-muted', async () => {
-			await this.plugin.openNatively(this.leaf, file);
 		});
 	}
 

@@ -1,4 +1,7 @@
-import { DEFAULT_EXTENSION_LIST, PROTECTED_EXTENSIONS } from './constants';
+import {
+	DEFAULT_EXTENSION_LIST,
+	DEFAULT_PROTECTED_EXTENSIONS,
+} from './constants';
 import type { InterceptionMode, LazyFileViewSettings } from './types';
 
 export type PathNormalizer = (path: string) => string;
@@ -7,6 +10,8 @@ export const DEFAULT_SETTINGS: Readonly<LazyFileViewSettings> = {
 	mode: 'folders',
 	folders: ['Documents', 'Attachments'],
 	extensions: [...DEFAULT_EXTENSION_LIST],
+	protectedFolders: [],
+	protectedExtensions: [...DEFAULT_PROTECTED_EXTENSIONS],
 };
 
 const MODES = new Set<InterceptionMode>(['folders', 'extensions', 'either']);
@@ -15,7 +20,12 @@ export function normalizeFolder(
 	value: string,
 	normalizePath: PathNormalizer,
 ): string | null {
-	const trimmed = value.trim().replaceAll('\\', '/').replace(/^\/+|\/+$/g, '');
+	const slashNormalized = value.trim().replaceAll('\\', '/');
+	if (/^\/+$/u.test(slashNormalized)) {
+		return '/';
+	}
+
+	const trimmed = slashNormalized.replace(/^\/+|\/+$/g, '');
 	if (trimmed.length === 0 || trimmed === '.') {
 		return null;
 	}
@@ -37,10 +47,7 @@ export function normalizeFolders(
 
 export function normalizeExtension(value: string): string | null {
 	const normalized = value.trim().toLowerCase().replace(/^\.+/, '');
-	if (normalized.length === 0 || PROTECTED_EXTENSIONS.has(normalized)) {
-		return null;
-	}
-	return normalized;
+	return normalized.length > 0 ? normalized : null;
 }
 
 export function normalizeExtensions(values: readonly string[]): string[] {
@@ -54,6 +61,7 @@ export function normalizeExtensions(values: readonly string[]): string[] {
 export function parseSettings(
 	data: unknown,
 	normalizePath: PathNormalizer,
+	configDir: string,
 ): LazyFileViewSettings {
 	const record = isRecord(data) ? data : {};
 	const mode = isMode(record.mode) ? record.mode : DEFAULT_SETTINGS.mode;
@@ -63,8 +71,20 @@ export function parseSettings(
 	const extensions = Array.isArray(record.extensions)
 		? normalizeExtensions(record.extensions.filter(isString))
 		: [...DEFAULT_SETTINGS.extensions];
+	const protectedFolders = Array.isArray(record.protectedFolders)
+		? normalizeFolders(record.protectedFolders.filter(isString), normalizePath)
+		: normalizeFolders([configDir], normalizePath);
+	const protectedExtensions = Array.isArray(record.protectedExtensions)
+		? normalizeExtensions(record.protectedExtensions.filter(isString))
+		: [...DEFAULT_SETTINGS.protectedExtensions];
 
-	return { mode, folders, extensions };
+	return {
+		mode,
+		folders,
+		extensions,
+		protectedFolders,
+		protectedExtensions,
+	};
 }
 
 export function splitSettingLines(value: string): string[] {
