@@ -1,0 +1,8 @@
+node_modules/
+.pnpm-store/
+.pnpm-offline-store/
+main.js
+*.map
+.test-vault/
+coverage/
+.DS_Store

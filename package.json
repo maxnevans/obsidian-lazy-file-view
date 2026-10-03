@@ -1,0 +1,43 @@
+{
+	"name": "lazy-file-view",
+	"version": "0.1.0",
+	"description": "Show lightweight placeholders when selected non-Markdown files are opened directly in Obsidian.",
+	"main": "main.js",
+	"type": "module",
+	"private": true,
+	"scripts": {
+		"dev": "node esbuild.config.mjs",
+		"build": "tsc --noEmit --skipLibCheck && node esbuild.config.mjs production",
+		"lint": "eslint .",
+		"test": "vitest run",
+		"test:watch": "vitest",
+		"test-vault": "node scripts/create-test-vault.mjs && node scripts/deploy-test-vault.mjs",
+		"deploy:test": "node scripts/deploy-test-vault.mjs"
+	},
+	"keywords": [
+		"obsidian",
+		"desktop",
+		"file-view"
+	],
+	"author": "maxnevans",
+	"license": "UNLICENSED",
+	"engines": {
+		"node": ">=20.0.0"
+	},
+	"dependencies": {
+		"monkey-around": "3.0.0"
+	},
+	"devDependencies": {
+		"@eslint/js": "^9.39.4",
+		"@types/node": "^22.15.17",
+		"esbuild": "0.25.5",
+		"eslint": "^9.39.4",
+		"eslint-plugin-obsidianmd": "^0.4.2",
+		"globals": "^17.6.0",
+		"jiti": "^2.6.1",
+		"obsidian": "1.13.1",
+		"typescript": "^5.8.3",
+		"typescript-eslint": "^8.59.1",
+		"vitest": "3.2.7"
+	}
+}
