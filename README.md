@@ -28,6 +28,34 @@ npm run test-vault
 
 Open `.test-vault` as an Obsidian vault, enable community plugins, and enable Lazy File View. Never use a personal vault for development testing.
 
+## Deploy to an existing vault
+
+Build the plugin in WSL, then copy its three runtime files into the vault. Replace the example vault path with the path to your vault:
+
+```sh
+cd /mnt/d/Source/obsidian-lazy-file-view
+source "$HOME/.nvm/nvm.sh"
+npm run build
+
+VAULT="/mnt/c/path/to/your/vault"
+PLUGIN="$VAULT/.obsidian/plugins/lazy-file-view"
+
+mkdir -p "$PLUGIN"
+cp main.js manifest.json styles.css "$PLUGIN/"
+```
+
+If the vault uses a configuration directory other than `.obsidian`, replace `.obsidian` in `PLUGIN` with that directory name.
+
+In Obsidian, open **Settings → Community plugins** and enable **Lazy File View**. If it was already enabled, disable and re-enable it to load the new build.
+
+Plugin settings are stored in:
+
+```text
+<Vault>/.obsidian/plugins/lazy-file-view/data.json
+```
+
+For normal updates, copy only `main.js`, `manifest.json`, and `styles.css`. Do not delete or overwrite `data.json`; this preserves the configured folders, extensions, and protected rules. A new installation does not need a `data.json` file. Obsidian creates it after settings are saved through **Settings → Lazy File View**.
+
 ## Feasibility gate
 
 Before relying on the plugin, verify on the target Obsidian version:
