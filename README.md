@@ -28,6 +28,45 @@ npm run test-vault
 
 Open `.test-vault` as an Obsidian vault, enable community plugins, and enable Lazy File View. Never use a personal vault for development testing.
 
+## Publishing releases
+
+Run releases from a normal local branch with a clean working tree and push access to the `origin` remote. The repository configures npm to create Obsidian-compatible tags without a `v` prefix.
+
+Choose the appropriate semantic-version increment:
+
+```sh
+npm version patch
+npm version minor
+npm version major
+```
+
+For a prerelease, use one of npm's prerelease increments and specify the identifier. For example:
+
+```sh
+npm version preminor --preid=beta
+npm version prerelease --preid=beta
+```
+
+The version command performs the complete local publishing sequence:
+
+1. Verifies that the Git working tree is clean.
+2. Runs the test suite, lint, and production build.
+3. Updates `package.json`, `package-lock.json`, `manifest.json`, and `versions.json` to the same version.
+4. Creates a version commit and an unprefixed tag such as `0.2.0` or `0.2.0-beta.1`.
+5. Atomically pushes the current branch and version tag to `origin`.
+
+If a local check fails, npm stops before creating the version commit or tag. If the final push fails, the commit and tag remain locally while the remote remains unchanged. Resolve the push problem and retry the same release with:
+
+```sh
+npm run release:push
+```
+
+Do not run another `npm version` command merely to retry a failed push.
+
+Pushing the tag starts the `Release Obsidian plugin` GitHub Actions workflow. GitHub independently installs locked dependencies, validates all version metadata, reruns tests and lint, builds the production bundle, and generates provenance attestations. If every check passes, it publishes a GitHub release with `main.js`, `manifest.json`, and `styles.css` as individual assets. Tags with a prerelease suffix create GitHub prereleases; all other version tags create stable releases. These release assets make the repository installable and updateable through BRAT.
+
+If the GitHub workflow fails, no release is published. Inspect the failed workflow before preparing a new version; published releases and their assets are never overwritten by the workflow.
+
 ## Deploy to an existing vault
 
 Build the plugin in WSL, then copy its three runtime files into the vault. Replace the example vault path with the path to your vault:
