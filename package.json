@@ -12,7 +12,12 @@
 		"test": "vitest run",
 		"test:watch": "vitest",
 		"test-vault": "node scripts/create-test-vault.mjs && node scripts/deploy-test-vault.mjs",
-		"deploy:test": "node scripts/deploy-test-vault.mjs"
+		"deploy:test": "node scripts/deploy-test-vault.mjs",
+		"check:version": "node scripts/validate-version.mjs",
+		"preversion": "npm test && npm run lint && npm run build",
+		"version": "node scripts/sync-version.mjs && npm run check:version && git add manifest.json versions.json",
+		"postversion": "node scripts/push-version.mjs",
+		"release:push": "node scripts/push-version.mjs"
 	},
 	"keywords": [
 		"obsidian",
