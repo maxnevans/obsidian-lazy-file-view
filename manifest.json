@@ -1,7 +1,7 @@
 {
 	"id": "lazy-file-view",
 	"name": "Lazy File View",
-	"version": "0.1.0",
+	"version": "0.1.1",
 	"minAppVersion": "1.13.7",
 	"description": "Show lightweight placeholders when selected files are opened directly.",
 	"author": "maxnevans",
