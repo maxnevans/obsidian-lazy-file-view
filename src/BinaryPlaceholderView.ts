@@ -3,6 +3,7 @@ import {
 	FileSystemAdapter,
 	FileView,
 	Notice,
+	setIcon,
 	TFile,
 	type ViewStateResult,
 	type WorkspaceLeaf,
@@ -10,11 +11,18 @@ import {
 import { VIEW_TYPE_PLACEHOLDER } from './constants';
 import { describeFileType, formatFileSize } from './file-utils';
 import type LazyFileViewPlugin from './main';
+import {
+	filenameSelectionEnd,
+	renameFilenameError,
+	renamedFilePath,
+} from './rename-utils';
 
 export class BinaryPlaceholderView extends FileView {
 	allowNoFile = true;
 	navigation = true;
 	private statePath = '';
+	private removeRenameOutsideClick: (() => void) | null = null;
+	private renamePending = false;
 
 	constructor(
 		leaf: WorkspaceLeaf,
@@ -72,6 +80,11 @@ export class BinaryPlaceholderView extends FileView {
 		this.render();
 	}
 
+	async onClose(): Promise<void> {
+		this.clearRenameOutsideClick();
+		await super.onClose();
+	}
+
 	handleDeleted(path: string): void {
 		if (path !== this.statePath && path !== this.file?.path) {
 			return;
@@ -80,7 +93,29 @@ export class BinaryPlaceholderView extends FileView {
 		this.render();
 	}
 
+	beginRename(): boolean {
+		const file = this.resolveFile();
+		const titleArea = this.contentEl.querySelector<HTMLElement>(
+			'.lazy-file-view__title-area',
+		);
+		if (!file || !titleArea) return false;
+
+		const existingInput = titleArea.querySelector<HTMLInputElement>(
+			'.lazy-file-view__rename-input',
+		);
+		if (existingInput) {
+			existingInput.focus();
+			return true;
+		}
+
+		this.renderRenameEditor(titleArea, file);
+		return true;
+	}
+
 	private render(): void {
+		this.clearRenameOutsideClick();
+		this.renamePending = false;
+
 		const contentEl = this.contentEl;
 		contentEl.empty();
 		contentEl.addClass('lazy-file-view');
@@ -92,10 +127,8 @@ export class BinaryPlaceholderView extends FileView {
 		}
 
 		const card = contentEl.createDiv({ cls: 'lazy-file-view__card' });
-		card.createEl('h2', {
-			cls: 'lazy-file-view__title',
-			text: file.name,
-		});
+		const titleArea = card.createDiv({ cls: 'lazy-file-view__title-area' });
+		this.renderFilename(titleArea, file);
 		card.createDiv({
 			cls: 'lazy-file-view__metadata',
 			text: `${describeFileType(file.extension)} · ${formatFileSize(file.stat.size)}`,
@@ -115,6 +148,141 @@ export class BinaryPlaceholderView extends FileView {
 		this.createAction(actions, 'Reveal in system explorer', '', () => {
 			this.revealInSystemExplorer(file);
 		});
+	}
+
+	private renderFilename(container: HTMLElement, file: TFile): void {
+		this.clearRenameOutsideClick();
+		this.renamePending = false;
+		container.empty();
+
+		const titleRow = container.createDiv({ cls: 'lazy-file-view__title-row' });
+		const title = titleRow.createEl('h2', {
+			cls: 'lazy-file-view__title',
+			text: file.name,
+		});
+		title.addEventListener('dblclick', () => {
+			this.renderRenameEditor(container, file);
+		});
+
+		const renameButton = titleRow.createEl('button', {
+			cls: 'lazy-file-view__rename-trigger clickable-icon',
+			attr: {
+				type: 'button',
+				'aria-label': 'Rename file',
+				title: 'Rename file',
+			},
+		});
+		setIcon(renameButton, 'pencil');
+		renameButton.addEventListener('click', () => {
+			this.renderRenameEditor(container, file);
+		});
+	}
+
+	private renderRenameEditor(container: HTMLElement, file: TFile): void {
+		this.clearRenameOutsideClick();
+		this.renamePending = false;
+		container.empty();
+
+		const controls = container.createDiv({ cls: 'lazy-file-view__rename-controls' });
+		const input = controls.createEl('input', {
+			cls: 'lazy-file-view__rename-input',
+			attr: {
+				type: 'text',
+				value: file.name,
+				'aria-label': 'File name',
+			},
+		});
+		const renameButton = controls.createEl('button', {
+			text: 'Rename',
+			cls: 'mod-cta',
+			attr: { type: 'button' },
+		});
+		const cancelButton = controls.createEl('button', {
+			text: 'Cancel',
+			attr: { type: 'button' },
+		});
+		const errorEl = container.createDiv({ cls: 'lazy-file-view__rename-error' });
+		errorEl.hidden = true;
+
+		const cancel = (): void => {
+			if (this.renamePending) return;
+			this.renderFilename(container, file);
+		};
+		const submit = async (): Promise<void> => {
+			if (this.renamePending) return;
+			const validationError = renameFilenameError(input.value);
+			if (validationError) {
+				errorEl.setText(validationError);
+				errorEl.hidden = false;
+				input.focus();
+				return;
+			}
+			if (input.value === file.name) {
+				this.renderFilename(container, file);
+				return;
+			}
+
+			this.renamePending = true;
+			input.disabled = true;
+			renameButton.disabled = true;
+			cancelButton.disabled = true;
+			errorEl.hidden = true;
+
+			try {
+				await this.app.fileManager.renameFile(
+					file,
+					renamedFilePath(file.path, input.value),
+				);
+			} catch (error) {
+				this.renamePending = false;
+				input.disabled = false;
+				renameButton.disabled = false;
+				cancelButton.disabled = false;
+				errorEl.setText(errorMessage(error));
+				errorEl.hidden = false;
+				input.focus();
+			}
+		};
+
+		input.addEventListener('input', () => {
+			errorEl.hidden = true;
+		});
+		input.addEventListener('keydown', (event) => {
+			if (event.key === 'Enter') {
+				event.preventDefault();
+				void submit();
+			} else if (event.key === 'Escape') {
+				event.preventDefault();
+				cancel();
+			}
+		});
+		renameButton.addEventListener('click', () => {
+			void submit();
+		});
+		cancelButton.addEventListener('click', cancel);
+
+		const document = container.ownerDocument;
+		const handleOutsideClick = (event: MouseEvent): void => {
+			if (
+				this.renamePending ||
+				(event.target && container.contains(event.target as Node))
+			) {
+				return;
+			}
+			cancel();
+		};
+		document.addEventListener('click', handleOutsideClick, true);
+		this.removeRenameOutsideClick = () => {
+			document.removeEventListener('click', handleOutsideClick, true);
+		};
+
+		input.focus();
+		input.setSelectionRange(0, filenameSelectionEnd(file.name, file.extension));
+	}
+
+	private clearRenameOutsideClick(): void {
+		this.removeRenameOutsideClick?.();
+		this.removeRenameOutsideClick = null;
 	}
 
 	private renderMissing(contentEl: HTMLElement): void {

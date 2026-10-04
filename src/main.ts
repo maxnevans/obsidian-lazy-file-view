@@ -9,6 +9,7 @@ import { BinaryPlaceholderView } from './BinaryPlaceholderView';
 import { VIEW_TYPE_PLACEHOLDER } from './constants';
 import { shouldInterceptFile } from './file-utils';
 import { OpenInterceptor } from './open-interceptor';
+import { RenameCommandInterceptor } from './rename-command-interceptor';
 import { LazyFileViewSettingTab } from './settings';
 import { parseSettings } from './settings-model';
 import type { LazyFileViewSettings } from './types';
@@ -32,6 +33,7 @@ export default class LazyFileViewPlugin extends Plugin {
 			(leaf) => new BinaryPlaceholderView(leaf, this),
 		);
 		this.register(this.interceptor.install());
+		this.register(new RenameCommandInterceptor(this.app).install());
 		this.addSettingTab(new LazyFileViewSettingTab(this.app, this));
 
 		this.registerEvent(
