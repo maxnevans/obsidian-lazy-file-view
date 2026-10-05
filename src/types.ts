@@ -1,11 +1,15 @@
-export type InterceptionMode = 'folders' | 'extensions' | 'either';
+export type FileOpenBehavior = 'obsidian' | 'placeholder' | 'default-app';
+
+export interface FileOpenRule {
+	folder: string;
+	behavior: FileOpenBehavior;
+	extensions: string[];
+	files: string[];
+	excludedFiles: string[];
+}
 
 export interface LazyFileViewSettings {
-	mode: InterceptionMode;
-	folders: string[];
-	extensions: string[];
-	protectedFolders: string[];
-	protectedExtensions: string[];
+	rules: FileOpenRule[];
 }
 
 export interface PlaceholderViewState extends Record<string, unknown> {

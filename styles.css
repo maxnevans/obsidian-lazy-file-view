@@ -93,3 +93,145 @@
 .lazy-file-view__actions button {
 	flex: 0 0 auto;
 }
+
+.lazy-file-view-settings__rules {
+	margin-top: var(--size-4-4);
+}
+
+.lazy-file-view-settings__rules
+	.setting-item:has(.lazy-file-view-settings__summary) {
+	display: flex;
+	gap: var(--size-4-3);
+}
+
+.lazy-file-view-settings__rules
+	.setting-item:has(.lazy-file-view-settings__summary)
+	> .setting-item-info {
+	flex: 1 1 0;
+	min-width: 0;
+	margin-inline-end: 0;
+}
+
+.lazy-file-view-settings__rules
+	.setting-item:has(.lazy-file-view-settings__summary)
+	> .setting-item-control {
+	flex: 0 0 17rem;
+	min-width: 0;
+	justify-content: flex-end;
+	align-items: center;
+	flex-wrap: nowrap;
+	transition: flex-basis 180ms ease;
+}
+
+.lazy-file-view-settings__rules
+	.setting-item:has(.lazy-file-view-settings__remove.is-confirming)
+	> .setting-item-control {
+	flex-basis: 26rem;
+}
+
+.lazy-file-view-settings__remove {
+	width: 2rem;
+	padding-inline: 0;
+	white-space: nowrap;
+	overflow: hidden;
+	transition: width 180ms ease;
+}
+
+.lazy-file-view-settings__remove.is-confirming {
+	width: 11rem;
+}
+
+.lazy-file-view-settings__action {
+	flex: 1 1 0;
+	min-width: 0;
+	text-align: right;
+	white-space: nowrap;
+	overflow: hidden;
+	text-overflow: ellipsis;
+	color: var(--text-muted);
+	font-size: var(--font-ui-small);
+}
+
+.lazy-file-view-settings__rules .setting-item-control button {
+	flex: 0 0 auto;
+}
+
+.lazy-file-view-settings__rule-warning {
+	color: var(--text-warning);
+}
+
+.lazy-file-view-settings__back.setting-item {
+	align-items: center;
+	justify-content: flex-start;
+	gap: var(--size-4-2);
+	padding: 0;
+	margin-bottom: var(--size-4-4);
+	border: none;
+	background: transparent;
+}
+
+.lazy-file-view-settings__back > .setting-item-control {
+	order: -1;
+	flex: 0 0 auto;
+	padding: 0;
+}
+
+.lazy-file-view-settings__back > .setting-item-info {
+	display: flex;
+	align-items: center;
+	flex: 0 1 auto;
+	margin: 0;
+}
+
+.lazy-file-view-settings__back .setting-item-name {
+	margin: 0;
+	font-weight: var(--font-semibold);
+}
+
+.lazy-file-view-settings__back .setting-item-description {
+	display: none;
+}
+
+.lazy-file-view-settings__rules .setting-item-description {
+	min-width: 0;
+	overflow-wrap: anywhere;
+}
+
+.lazy-file-view-settings__rules .setting-item-name {
+	min-width: 0;
+	white-space: nowrap;
+	overflow: hidden;
+	text-overflow: ellipsis;
+}
+
+.lazy-file-view-settings__summary {
+	display: block;
+	min-width: 0;
+	line-height: var(--line-height-tight);
+}
+
+.lazy-file-view-settings__summary-content {
+	min-width: 0;
+}
+
+.lazy-file-view-settings__summary-extensions,
+.lazy-file-view-settings__summary-details,
+.lazy-file-view-settings__summary-spacer {
+	min-width: 0;
+	white-space: nowrap;
+	overflow: hidden;
+	text-overflow: ellipsis;
+}
+
+.lazy-file-view-settings__summary-spacer {
+	visibility: hidden;
+}
+
+.lazy-file-view-settings__warning {
+	border-inline-start: 3px solid var(--color-orange);
+	padding-inline-start: var(--size-4-3);
+}
+
+.lazy-file-view-settings__warning .setting-item-name {
+	color: var(--text-warning);
+}

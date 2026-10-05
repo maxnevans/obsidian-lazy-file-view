@@ -7,7 +7,8 @@ import {
 } from 'obsidian';
 import { BinaryPlaceholderView } from './BinaryPlaceholderView';
 import { VIEW_TYPE_PLACEHOLDER } from './constants';
-import { shouldInterceptFile } from './file-utils';
+import { DesktopFileActions } from './desktop-file-actions';
+import { resolveFileOpenBehavior } from './file-utils';
 import { OpenInterceptor } from './open-interceptor';
 import { RenameCommandInterceptor } from './rename-command-interceptor';
 import { LazyFileViewSettingTab } from './settings';
@@ -17,6 +18,7 @@ import type { LazyFileViewSettings } from './types';
 export default class LazyFileViewPlugin extends Plugin {
 	settings!: LazyFileViewSettings;
 	private interceptor!: OpenInterceptor;
+	private desktopFileActions!: DesktopFileActions;
 
 	async onload(): Promise<void> {
 		this.settings = parseSettings(
@@ -24,8 +26,14 @@ export default class LazyFileViewPlugin extends Plugin {
 			normalizePath,
 			this.app.vault.configDir,
 		);
-		this.interceptor = new OpenInterceptor((file) =>
-			shouldInterceptFile(file, this.settings),
+		this.desktopFileActions = new DesktopFileActions(this.app);
+		this.interceptor = new OpenInterceptor(
+			(file) => resolveFileOpenBehavior(file, this.settings),
+			(file) => this.desktopFileActions.openInDefaultApp(file),
+			(error) =>
+				new Notice(
+					`Couldn't open the file using the default application: ${error}`,
+				),
 		);
 
 		this.registerView(
@@ -64,5 +72,17 @@ export default class LazyFileViewPlugin extends Plugin {
 			const message = error instanceof Error ? error.message : String(error);
 			new Notice(`Couldn't load the file in Obsidian: ${message}`);
 		}
+	}
+
+	async openInDefaultApp(file: TFile): Promise<void> {
+		const error = await this.desktopFileActions.openInDefaultApp(file);
+		if (error) {
+			new Notice(`Couldn't open the file using the default application: ${error}`);
+		}
+	}
+
+	revealInSystemExplorer(file: TFile): void {
+		const error = this.desktopFileActions.revealInSystemExplorer(file);
+		if (error) new Notice(`Couldn't reveal the file: ${error}`);
 	}
 }

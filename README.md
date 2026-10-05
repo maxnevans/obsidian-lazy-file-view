@@ -1,6 +1,6 @@
 # Lazy File View
 
-Lazy File View is a desktop-only Obsidian plugin that replaces selected direct file opens with a lightweight placeholder. Markdown embeds continue to use Obsidian's normal renderers.
+Lazy File View is a desktop-only Obsidian plugin that routes selected direct file opens to Obsidian, a lightweight action dialog, or the operating system's default application. Markdown embeds continue to use Obsidian's normal renderers.
 
 The placeholder shows file metadata without reading the file and provides actions to:
 
@@ -8,7 +8,17 @@ The placeholder shows file metadata without reading the file and provides action
 - reveal it in the system file manager;
 - load it through Obsidian's normal file-opening path.
 
-In settings, use `/` as a folder entry to include the vault root, or `*` as an extension entry to include every extension. Protected folders and protected extensions are separate, visible lists that always take precedence over interception rules. Existing installations are migrated with the vault's current configuration folder plus `md`, `canvas`, and `base` protected by default. You can edit these lists as Obsidian evolves without updating the plugin.
+## File opening rules
+
+Settings contains an ordered list of folder-scoped rules. Each rule chooses one action and can match extensions, exact vault-relative files, or both. Use `/` for the vault root and `*` for every file, including extensionless files. Exact-file exclusions prevent only their own rule from matching.
+
+Resolution follows these priorities:
+
+1. Exact-file matches are checked first. The nearest folder wins, then the first visible rule.
+2. Otherwise, folders are checked from nearest to farthest. Exact extensions beat `*`, then the first visible rule wins.
+3. Files outside every configured rule folder open normally in Obsidian.
+
+Out-of-folder exact paths are retained in settings but shown as inactive warnings. The default rules preserve the original behavior: files in `Documents` and `Attachments` show the action dialog, except `md`, `canvas`, and `base`, which stay with Obsidian. The old global settings format is intentionally replaced rather than migrated.
 
 ## Compatibility note
 
@@ -93,13 +103,13 @@ Plugin settings are stored in:
 <Vault>/.obsidian/plugins/lazy-file-view/data.json
 ```
 
-For normal updates, copy only `main.js`, `manifest.json`, and `styles.css`. Do not delete or overwrite `data.json`; this preserves the configured folders, extensions, and protected rules. A new installation does not need a `data.json` file. Obsidian creates it after settings are saved through **Settings → Lazy File View**.
+For normal updates, copy only `main.js`, `manifest.json`, and `styles.css`. Do not delete or overwrite `data.json`; this preserves the configured file-opening rules. A new installation does not need a `data.json` file. Obsidian creates it after settings are saved through **Settings → Lazy File View**.
 
 ## Feasibility gate
 
 Before relying on the plugin, verify on the target Obsidian version:
 
-1. Opening `Documents/small.pdf` from File Explorer, Quick Switcher, and the normal link in `Test.md` shows the placeholder.
+1. Opening `Documents/small.pdf` from File Explorer, Quick Switcher, and the normal link in `Test.md` follows the configured matching rule.
 2. The embedded PDF in `Test.md` uses Obsidian's native PDF renderer.
 3. Embedded image, audio, and video files remain native.
 4. Disabling the plugin restores ordinary direct opens.

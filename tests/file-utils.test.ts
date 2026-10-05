@@ -3,103 +3,133 @@ import {
 	describeFileType,
 	formatFileSize,
 	isPathInFolder,
-	shouldInterceptFile,
+	resolveFileOpenBehavior,
 } from '../src/file-utils';
-import type { LazyFileViewSettings } from '../src/types';
+import type {
+	FileOpenBehavior,
+	FileOpenRule,
+	LazyFileViewSettings,
+} from '../src/types';
 
-const baseSettings: LazyFileViewSettings = {
-	mode: 'folders',
-	folders: ['Documents', 'Attachments'],
-	extensions: ['pdf', 'jpg'],
-	protectedFolders: ['.obsidian'],
-	protectedExtensions: ['md', 'canvas', 'base'],
-};
-
-describe('shouldInterceptFile', () => {
-	it('matches only configured folder descendants in folder mode', () => {
-		expect(shouldInterceptFile(file('Documents/file.pdf'), baseSettings)).toBe(true);
-		expect(shouldInterceptFile(file('Documents-old/file.pdf'), baseSettings)).toBe(false);
-		expect(shouldInterceptFile(file('Other/file.pdf'), baseSettings)).toBe(false);
+describe('resolveFileOpenBehavior', () => {
+	it('leaves files outside every configured folder with Obsidian', () => {
+		const settings = settingsWith(rule('Documents', 'placeholder', ['*']));
+		expect(resolve('Documents/file.pdf', settings)).toBe('placeholder');
+		expect(resolve('Documents-old/file.pdf', settings)).toBe('obsidian');
+		expect(resolve('Other/file.pdf', settings)).toBe('obsidian');
 	});
 
-	it('matches configured extensions case-insensitively in extension mode', () => {
-		const settings = { ...baseSettings, mode: 'extensions' as const };
-		expect(shouldInterceptFile(file('Other/file.PDF'), settings)).toBe(true);
-		expect(shouldInterceptFile(file('Other/file.zip'), settings)).toBe(false);
+	it('ignores rules with invalid folder names', () => {
+		const settings = settingsWith(
+			rule('Documents:Private', 'default-app', ['*']),
+			rule('.Private', 'placeholder', ['*']),
+			rule('Documents\\Private', 'default-app', ['*']),
+		);
+		expect(resolve('Documents:Private/file.pdf', settings)).toBe('obsidian');
+		expect(resolve('.Private/file.pdf', settings)).toBe('obsidian');
+		expect(resolve('Documents/Private/file.pdf', settings)).toBe('obsidian');
 	});
 
-	it('matches the vault root folder entry', () => {
-		const settings = { ...baseSettings, folders: ['/'] };
-		expect(shouldInterceptFile(file('root.pdf'), settings)).toBe(true);
-		expect(shouldInterceptFile(file('Nested/file.pdf'), settings)).toBe(true);
+	it('uses the nearest folder and blocks parent fallback on a wildcard', () => {
+		const settings = settingsWith(
+			rule('Documents', 'placeholder', ['pdf']),
+			rule('Documents/Some', 'obsidian', ['*']),
+			rule('Documents/Some/Other', 'default-app', ['*']),
+		);
+		expect(resolve('Documents/report.pdf', settings)).toBe('placeholder');
+		expect(resolve('Documents/Some/report.pdf', settings)).toBe('obsidian');
+		expect(resolve('Documents/Some/Other/report.pdf', settings)).toBe(
+			'default-app',
+		);
 	});
 
-	it('matches every non-protected extension with a wildcard', () => {
-		const settings = {
-			...baseSettings,
-			mode: 'extensions' as const,
-			extensions: ['*'],
-		};
-		expect(shouldInterceptFile(file('Other/file.zip'), settings)).toBe(true);
-		expect(shouldInterceptFile(file('Other/file.md'), settings)).toBe(false);
+	it('lets exact extensions beat wildcards at the same folder', () => {
+		const settings = settingsWith(
+			rule('Documents', 'placeholder', ['*']),
+			rule('Documents', 'default-app', ['pdf']),
+		);
+		expect(resolve('Documents/report.pdf', settings)).toBe('default-app');
+		expect(resolve('Documents/report.docx', settings)).toBe('placeholder');
+		expect(resolve('Documents/README', settings)).toBe('placeholder');
 	});
 
-	it('matches either condition in either mode', () => {
-		const settings = { ...baseSettings, mode: 'either' as const };
-		expect(shouldInterceptFile(file('Documents/file.zip'), settings)).toBe(true);
-		expect(shouldInterceptFile(file('Other/file.jpg'), settings)).toBe(true);
-		expect(shouldInterceptFile(file('Other/file.zip'), settings)).toBe(false);
+	it('uses visible order to break equal-priority ties', () => {
+		const settings = settingsWith(
+			rule('Documents', 'default-app', ['pdf']),
+			rule('Documents', 'placeholder', ['pdf']),
+		);
+		expect(resolve('Documents/report.pdf', settings)).toBe('default-app');
 	});
 
-	it.each(['md', 'canvas', 'base'])('never intercepts .%s files', (extension) => {
-		const settings = {
-			...baseSettings,
-			mode: 'either' as const,
-		};
+	it('lets a parent exact file beat a child extension rule', () => {
+		const parent = rule('Documents', 'default-app', []);
+		parent.files = ['Documents/Some/report.pdf'];
+		const child = rule('Documents/Some', 'placeholder', ['pdf']);
+		expect(resolve('Documents/Some/report.pdf', settingsWith(parent, child))).toBe(
+			'default-app',
+		);
+	});
+
+	it('lets the nearest exact-file rule win', () => {
+		const parent = rule('Documents', 'placeholder', []);
+		parent.files = ['Documents/Some/report.pdf'];
+		const child = rule('Documents/Some', 'default-app', []);
+		child.files = ['Documents/Some/report.pdf'];
+		expect(resolve('Documents/Some/report.pdf', settingsWith(parent, child))).toBe(
+			'default-app',
+		);
+	});
+
+	it('matches exact files independently of extensions', () => {
+		const exact = rule('Documents', 'default-app', ['docx']);
+		exact.files = ['Documents/report.pdf'];
+		expect(resolve('Documents/report.pdf', settingsWith(exact))).toBe(
+			'default-app',
+		);
+	});
+
+	it('supports an all-files wildcard in the exact-files list', () => {
+		const parent = rule('Documents', 'default-app', []);
+		parent.files = ['*'];
+		const child = rule('Documents/Some', 'placeholder', ['pdf']);
+		expect(resolve('Documents/Some/report.pdf', settingsWith(parent, child))).toBe(
+			'default-app',
+		);
+	});
+
+	it('excludes only the rule containing the exact exclusion', () => {
+		const excluded = rule('Documents/Some', 'default-app', ['pdf']);
+		excluded.excludedFiles = ['Documents/Some/report.pdf'];
+		const sameFolder = rule('Documents/Some', 'placeholder', ['pdf']);
+		const parent = rule('Documents', 'obsidian', ['pdf']);
 		expect(
-			shouldInterceptFile(file(`Documents/file.${extension}`), settings),
-		).toBe(false);
+			resolve(
+				'Documents/Some/report.pdf',
+				settingsWith(excluded, sameFolder, parent),
+			),
+		).toBe('placeholder');
 	});
 
-	it('never intercepts files inside the vault configuration directory', () => {
-		const settings = {
-			...baseSettings,
-			mode: 'either' as const,
-			folders: ['/'],
-			extensions: ['json'],
-		};
-		expect(
-			shouldInterceptFile(file('.obsidian/plugins/example/data.json'), settings),
-		).toBe(false);
+	it('lets an exclusion override inclusion on the same rule', () => {
+		const excluded = rule('Documents', 'default-app', ['pdf']);
+		excluded.files = ['Documents/report.pdf'];
+		excluded.excludedFiles = ['Documents/report.pdf'];
+		const fallback = rule('Documents', 'placeholder', ['pdf']);
+		expect(resolve('Documents/report.pdf', settingsWith(excluded, fallback))).toBe(
+			'placeholder',
+		);
 	});
 
-	it('allows protected rules to be edited or cleared', () => {
-		const editableSettings = {
-			...baseSettings,
-			mode: 'extensions' as const,
-			extensions: ['*'],
-			protectedFolders: ['Private'],
-			protectedExtensions: ['secret'],
-		};
-		expect(shouldInterceptFile(file('Private/file.pdf'), editableSettings)).toBe(false);
-		expect(shouldInterceptFile(file('Other/file.secret'), editableSettings)).toBe(false);
-		expect(
-			shouldInterceptFile(file('Other/file.md'), {
-				...editableSettings,
-				protectedFolders: [],
-				protectedExtensions: [],
-			}),
-		).toBe(true);
+	it('ignores exact paths that are outside their rule folder', () => {
+		const outside = rule('Private', 'default-app', []);
+		outside.files = ['Documents/report.pdf'];
+		expect(resolve('Documents/report.pdf', settingsWith(outside))).toBe('obsidian');
 	});
 
-	it('supports a protected-extension wildcard', () => {
-		const settings = {
-			...baseSettings,
-			mode: 'extensions' as const,
-			extensions: ['*'],
-			protectedExtensions: ['*'],
-		};
-		expect(shouldInterceptFile(file('Other/file.pdf'), settings)).toBe(false);
+	it('supports the vault-root folder', () => {
+		const settings = settingsWith(rule('/', 'placeholder', ['*']));
+		expect(resolve('root.pdf', settings)).toBe('placeholder');
+		expect(resolve('Nested/file.pdf', settings)).toBe('placeholder');
 	});
 });
 
@@ -126,9 +156,21 @@ describe('file utilities', () => {
 	});
 });
 
-function file(path: string): { path: string; extension: string } {
-	return {
-		path,
-		extension: path.split('.').at(-1) ?? '',
-	};
+function settingsWith(...rules: FileOpenRule[]): LazyFileViewSettings {
+	return { rules };
+}
+
+function rule(
+	folder: string,
+	behavior: FileOpenBehavior,
+	extensions: string[],
+): FileOpenRule {
+	return { folder, behavior, extensions, files: [], excludedFiles: [] };
+}
+
+function resolve(path: string, settings: LazyFileViewSettings): FileOpenBehavior {
+	return resolveFileOpenBehavior(
+		{ path, extension: path.includes('.') ? (path.split('.').at(-1) ?? '') : '' },
+		settings,
+	);
 }

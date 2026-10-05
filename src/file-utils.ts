@@ -1,36 +1,52 @@
-import type { InterceptableFile, LazyFileViewSettings } from './types';
+import type {
+	FileOpenBehavior,
+	FileOpenRule,
+	InterceptableFile,
+	LazyFileViewSettings,
+} from './types';
+import { validateFolderPath } from './settings-model';
 
-export function shouldInterceptFile(
+export function resolveFileOpenBehavior(
 	file: InterceptableFile,
 	settings: LazyFileViewSettings,
-): boolean {
+): FileOpenBehavior {
+	const path = normalizeComparablePath(file.path);
 	const extension = file.extension.toLowerCase();
-	const isProtectedExtension =
-		extension.length > 0 &&
-		(settings.protectedExtensions.includes('*') ||
-			settings.protectedExtensions.includes(extension));
-	const isProtectedFolder = settings.protectedFolders.some((folder) =>
-		isPathInFolder(file.path, folder),
+	const scopedRules = settings.rules
+		.map((rule, index) => ({ rule, index }))
+		.filter(
+			({ rule }) =>
+				!validateFolderPath(rule.folder) && isPathInFolder(path, rule.folder),
+		);
+	if (scopedRules.length === 0) return 'obsidian';
+
+	const eligibleRules = scopedRules.filter(
+		({ rule }) => !rule.excludedFiles.includes(path),
 	);
-	if (isProtectedExtension || isProtectedFolder) {
-		return false;
+	const exactFileRule = eligibleRules
+		.filter(
+			({ rule }) => rule.files.includes('*') || rule.files.includes(path),
+		)
+		.sort(compareRulePriority)[0];
+	if (exactFileRule) return exactFileRule.rule.behavior;
+
+	const folders = uniqueFoldersByDepth(eligibleRules.map(({ rule }) => rule));
+	for (const folder of folders) {
+		const rulesAtFolder = eligibleRules.filter(
+			({ rule }) => rule.folder === folder,
+		);
+		const exactExtensionRule = rulesAtFolder.find(({ rule }) =>
+			rule.extensions.includes(extension),
+		);
+		if (exactExtensionRule) return exactExtensionRule.rule.behavior;
+
+		const wildcardRule = rulesAtFolder.find(({ rule }) =>
+			rule.extensions.includes('*'),
+		);
+		if (wildcardRule) return wildcardRule.rule.behavior;
 	}
 
-	const matchesFolder = settings.folders.some((folder) =>
-		isPathInFolder(file.path, folder),
-	);
-	const matchesExtension =
-		extension.length > 0 &&
-		(settings.extensions.includes('*') || settings.extensions.includes(extension));
-
-	switch (settings.mode) {
-		case 'folders':
-			return matchesFolder;
-		case 'extensions':
-			return matchesExtension;
-		case 'either':
-			return matchesFolder || matchesExtension;
-	}
+	return 'obsidian';
 }
 
 export function isPathInFolder(path: string, folder: string): boolean {
@@ -39,6 +55,29 @@ export function isPathInFolder(path: string, folder: string): boolean {
 	}
 	const normalizedFolder = folder.replace(/^\/+|\/+$/g, '');
 	return normalizedFolder.length > 0 && path.startsWith(`${normalizedFolder}/`);
+}
+
+function compareRulePriority(
+	left: { rule: FileOpenRule; index: number },
+	right: { rule: FileOpenRule; index: number },
+): number {
+	return folderDepth(right.rule.folder) - folderDepth(left.rule.folder) ||
+		left.index - right.index;
+}
+
+function uniqueFoldersByDepth(rules: FileOpenRule[]): string[] {
+	return [...new Set(rules.map((rule) => rule.folder))].sort(
+		(left, right) => folderDepth(right) - folderDepth(left),
+	);
+}
+
+function folderDepth(folder: string): number {
+	if (/^\/+$/u.test(folder)) return 0;
+	return folder.split('/').filter(Boolean).length;
+}
+
+function normalizeComparablePath(path: string): string {
+	return path.replaceAll('\\', '/').replace(/^\/+|\/+$/g, '');
 }
 
 export function formatFileSize(bytes: number): string {

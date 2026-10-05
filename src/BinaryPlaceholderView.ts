@@ -1,8 +1,5 @@
-import { shell } from 'electron';
 import {
-	FileSystemAdapter,
 	FileView,
-	Notice,
 	setIcon,
 	TFile,
 	type ViewStateResult,
@@ -143,10 +140,10 @@ export class BinaryPlaceholderView extends FileView {
 			await this.plugin.openNatively(this.leaf, file);
 		});
 		this.createAction(actions, 'Open with default app', '', async () => {
-			await this.openInDefaultApp(file);
+			await this.plugin.openInDefaultApp(file);
 		});
 		this.createAction(actions, 'Reveal in system explorer', '', () => {
-			this.revealInSystemExplorer(file);
+			this.plugin.revealInSystemExplorer(file);
 		});
 	}
 
@@ -301,40 +298,6 @@ export class BinaryPlaceholderView extends FileView {
 		const path = this.file?.path ?? this.statePath;
 		if (!path) return null;
 		return this.app.vault.getFileByPath(path);
-	}
-
-	private getSystemPath(file: TFile): string | null {
-		const adapter = this.app.vault.adapter;
-		if (!(adapter instanceof FileSystemAdapter)) {
-			new Notice('This vault does not use a desktop filesystem adapter.');
-			return null;
-		}
-		return adapter.getFullPath(file.path);
-	}
-
-	private async openInDefaultApp(file: TFile): Promise<void> {
-		const fullPath = this.getSystemPath(file);
-		if (!fullPath) return;
-
-		try {
-			const error = await shell.openPath(fullPath);
-			if (error) {
-				new Notice(`Couldn't open the file using the default application: ${error}`);
-			}
-		} catch (error) {
-			new Notice(`Couldn't open the file using the default application: ${errorMessage(error)}`);
-		}
-	}
-
-	private revealInSystemExplorer(file: TFile): void {
-		const fullPath = this.getSystemPath(file);
-		if (!fullPath) return;
-
-		try {
-			shell.showItemInFolder(fullPath);
-		} catch (error) {
-			new Notice(`Couldn't reveal the file: ${errorMessage(error)}`);
-		}
 	}
 
 	private createAction(
