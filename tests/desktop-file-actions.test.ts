@@ -1,14 +1,13 @@
-import { shell } from 'electron';
 import type { App, TFile } from 'obsidian';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { DesktopFileActions } from '../src/desktop-file-actions';
 
-vi.mock('electron', () => ({
-	shell: {
-		openPath: vi.fn(),
-		showItemInFolder: vi.fn(),
-	},
+const shell = vi.hoisted(() => ({
+	openPath: vi.fn<(path: string) => Promise<string>>(),
+	showItemInFolder: vi.fn<(path: string) => void>(),
 }));
+
+vi.mock('electron', () => ({ shell }));
 
 describe('DesktopFileActions', () => {
 	beforeEach(() => {
@@ -65,5 +64,13 @@ function filesystemAdapter(): { getFullPath(path: string): string } {
 }
 
 function file(): TFile {
-	return { path: 'Documents/report.pdf' } as TFile;
+	return {
+		path: 'Documents/report.pdf',
+		name: 'report.pdf',
+		basename: 'report',
+		extension: 'pdf',
+		parent: null,
+		vault: appWith(filesystemAdapter()).vault,
+		stat: { ctime: 0, mtime: 0, size: 0 },
+	};
 }
